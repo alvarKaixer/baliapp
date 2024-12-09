@@ -1,18 +1,40 @@
 import 'package:flutter/material.dart';
-import 'models/recommendation.dart';
+import 'models/recommended.dart';
 import 'widgets/recommendation_list.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart'; 
 
 class RecommendationPage extends StatelessWidget {
-  final List<Recommendation> recommendations;
+  final List<Recommended> recommendations;
   final double remainingBudget;
+  final Recommended? recommendation;
 
   const RecommendationPage({
     Key? key,
     required this.recommendations,
     required this.remainingBudget,
-    required List<Map<String, dynamic>> responses,
-    required recommendation,
+    required this.recommendation,
   }) : super(key: key);
+
+
+  // Fetch the recommendation object from SharedPreferences
+  Future<Recommended?> getRecommendation() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? recommendationJson = prefs.getString('recommend_location');
+
+    debugPrint('RECO PAGE ${recommendationJson}');
+
+    if (recommendationJson != null) {
+      // Decode the JSON and convert it into a Recommendation object
+      Map<String, dynamic> recommendationMap = jsonDecode(recommendationJson);
+      return Recommended.fromMap(recommendationMap);
+    } else {
+      // Return null if no recommendation is stored
+      return null;
+    }
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -33,23 +55,28 @@ class RecommendationPage extends StatelessWidget {
                   '₱${remainingBudget.toStringAsFixed(2)}'),
               const SizedBox(height: 8),
 
+              // Display Top Recommendation
+              if (recommendation != null) ...[
+                _buildSectionTitle('Top Recommendation:'),
+                _buildInfoText('Name:', recommendation!.name),
+                // _buildInfoText('Location:', recommendation!.location),
+                // _buildInfoText('Entrance Fee:', '₱${recommendation!.entranceFee.toStringAsFixed(2)}'),
+              ] else ...[
+                const Text('No recommendation available'),
+              ],
+
+
+              const SizedBox(height: 16),
+
               // Section Title
               _buildSectionTitle('Pick your recommendation:'),
               const SizedBox(height: 16),
 
-              // Display Top Recommendation
-              _buildSectionTitle('Top Recommendation:'),
-              RecommendationList(
-                recommendations: recommendations.take(1).toList(),
-              ),
-
-              const SizedBox(height: 16),
-
               // Display More Recommendations
               _buildSectionTitle('More Recommendations:'),
-              RecommendationList(
-                recommendations: recommendations.skip(1).toList(),
-              ),
+              // RecommendationList(
+              //   recommendations: recommendations.skip(1).toList(),
+              // ),
 
               // Back and Next buttons at the bottom
               const SizedBox(height: 16),

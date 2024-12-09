@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
-import 'recommendation_page.dart'; // Import the RecommendationPage
+import 'recommendation_page.dart'; 
+import 'package:shared_preferences/shared_preferences.dart'; 
+import 'package:music_recommender/service/api_service.dart';
+import 'dart:convert';
+import 'models/recommended.dart';
 
 class AHPQuestionsScreen extends StatefulWidget {
   const AHPQuestionsScreen({super.key});
@@ -14,69 +18,203 @@ class _AHPQuestionsScreenState extends State<AHPQuestionsScreen> {
 
   final List<List<Map<String, String>>> criteriaSets = [
     [
-      {'criterion1': 'Facilities', 'criterion2': 'Tourist Activities'},
-      {'criterion1': 'Facilities', 'criterion2': 'Cost'},
+      { 
+        'criterion1': 'Facilities', 
+        'criterion2': 'Tourist Activities', 
+        'pair': 'M2-M1'
+      },
+      { 
+        'criterion1': 'Facilities', 
+        'criterion2': 'Cost',
+        'pair': 'M2-M3'
+      },
       {
         'criterion1': 'Facilities',
-        'criterion2': 'Accessibility and Loc. of Destinations'
+        'criterion2': 'Accessibility and Loc. of Destinations',
+        'pair': 'M2-M4'
       },
     ],
     [
-      {'criterion1': 'Cost', 'criterion2': 'Tourist Activities'},
-      {'criterion1': 'Cost', 'criterion2': 'Facilities'},
+      {
+        'criterion1': 'Cost', 
+        'criterion2': 'Tourist Activities',
+        'pair': 'M3-M1'
+      },
+      {
+        'criterion1': 'Cost', 
+        'criterion2': 'Facilities',
+        'pair': 'M3-M2'
+      },
       {
         'criterion1': 'Cost',
-        'criterion2': 'Accessibility and Loc. of Destinations'
+        'criterion2': 'Accessibility and Loc. of Destinations',
+        'pair': 'M3-M4'
       },
     ],
     [
       {
         'criterion1': 'Accessibility and Loc. of Destinations',
-        'criterion2': 'Tourist Activities'
+        'criterion2': 'Tourist Activities',
+        'pair': 'M4-M1'
       },
       {
         'criterion1': 'Accessibility and Loc. of Destinations',
-        'criterion2': 'Facilities'
+        'criterion2': 'Facilities',
+        'pair': 'M4-M2'  
       },
       {
         'criterion1': 'Accessibility and Loc. of Destinations',
-        'criterion2': 'Cost'
+        'criterion2': 'Cost',
+        'pair': 'M4-M3'
       },
     ],
     [
-      {'criterion1': 'Tourist Activities', 'criterion2': 'Facilities'},
-      {'criterion1': 'Tourist Activities', 'criterion2': 'Cost'},
+      {
+        'criterion1': 'Tourist Activities', 
+        'criterion2': 'Facilities',
+        'pair': 'M1-M2'  
+      },
+      {
+        'criterion1': 'Tourist Activities', 
+        'criterion2': 'Cost',
+        'pair': 'M1-M3'
+      },
       {
         'criterion1': 'Tourist Activities',
-        'criterion2': 'Accessibility and Loc. of Destinations'
+        'criterion2': 'Accessibility and Loc. of Destinations',
+        'pair': 'M1-M4'
       },
     ],
   ];
 
   final List<int> _sliderValues = List.filled(12, 5);
+
+  bool _isLoading = false;
+  String _errorMessage = '';
   int _currentSetIndex = 0;
 
-  // Tracks selected button indices
-  final Map<int, String?> selectedCriteria = {};
+  final ApiService _apiService = ApiService();
 
-  void _saveAndNext() {
+  // Declare selectedPairsWithScores here, so it's accessible later
+  List<Map<String, dynamic>> selectedPairsWithScores = [];
+
+  // Tracks selected button indices
+  final Map<int, Map<String, dynamic>> selectedCriteria = {};
+
+
+ // AHP Rating API call and error handling
+  void _ahpRatePairs() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      final response = await _apiService.ratePairWise({
+        'ratings': selectedPairsWithScores
+      });
+
+      if (response.statusCode == 201) {
+        // final recommendedLocation = response.data;
+
+        // Save the Recommended using SharedPreferences
+        // Assuming response.data is a valid Map or JSON object that can be converted to a Recommended
+        final recommendedLocation = Recommended.fromMap(response.data);  // Convert the response data to Recommended
+        
+        // Call the method to store the Recommended
+        await storeRecommended(recommendedLocation); 
+
+
+      } else {
+        setState(() {
+          _errorMessage = 'Failed to calculate AHP';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage =
+            'An error occurred. Please try again later. ERROR: ${e.toString()}';
+      });
+    } finally {
+      // setState(() {
+      //   _isLoading = false;
+      // });
+    }
+  }
+
+    Future<void> storeRecommended(Recommended recommendation) async {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      
+      // Convert the Recommendation object to a map and then to a JSON string
+      String recommendationJson = jsonEncode(recommendation.toMap());
+      
+      // Save the JSON string in SharedPreferences
+      await prefs.setString('recommend_location', recommendationJson);
+      
+      debugPrint('Stored Recommendation: $recommendationJson');
+    }
+
+
+  Future<Recommended?> getRecommended() async {
+    // Access SharedPreferences
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    // Get the stored recommendation JSON string
+    String? recommendedLocationJson = prefs.getString('recommend_location');
+
+    // If the stored recommendation exists
+    if (recommendedLocationJson != null) {
+      // Decode the JSON string to a Map
+      Map<String, dynamic> recommendedLocationMap = jsonDecode(recommendedLocationJson);
+
+      // Create and return the Recommendation object from the map
+      return Recommended.fromMap(recommendedLocationMap);
+    } else {
+      // Return null if no Recommended is found
+      return null;
+    }
+  }
+
+
+  void _saveAndNext() async {
     if (_currentSetIndex < 3) {
       setState(() {
         _currentSetIndex++;
-        selectedCriteria[_currentSetIndex] = null;
       });
+
+      // Convert selected criteria to an array of objects
+      selectedPairsWithScores = selectedCriteria.entries
+          .where((entry) => entry.value.containsKey('pair') && entry.value.containsKey('score'))
+          .map((entry) => {
+                'pair': entry.value['pair'],
+                'score': entry.value['score'],
+              })
+          .toList();
+
+      // Log the result
+      debugPrint('Selected Pairs with Scores: $selectedPairsWithScores');
     } else {
+
+      // Call AHP API
+      _ahpRatePairs();
+
+    // Get the recommendation before navigating
+    Recommended? recommendation = await getRecommended();
+
+    debugPrint('SAVED Recommended : ${recommendation}');
+
+      // Navigate to Recomendation page
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (context) => RecommendationPage(
-            recommendations: const [],
-            remainingBudget: 1000.0,
-            responses: const [],
-            recommendation: "",
+            recommendations: const [], // Or pass a valid list of Recommended objects
+            remainingBudget: 1000.0, // Your remaining budget
+            recommendation: recommendation, // Pass the Recommendation object
           ),
         ),
       );
+
     }
   }
 
@@ -89,128 +227,150 @@ class _AHPQuestionsScreenState extends State<AHPQuestionsScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    List<Map<String, String>> currentSet = criteriaSets[_currentSetIndex];
+    Widget build(BuildContext context) {
+      final currentSet = criteriaSets[_currentSetIndex];
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('AHP Questions - Set ${_currentSetIndex + 1}/4'),
-        leading: _currentSetIndex > 0
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: _goBack,
-              )
-            : null,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Please rate the following criterion pairs:',
-              style: TextStyle(fontSize: 18),
-            ),
-            const SizedBox(height: 16),
-
-            // Display criterion pairs and sliders
-            for (int i = 0; i < 3; i++)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            selectedCriteria[_currentSetIndex * 3 + i] =
-                                currentSet[i]['criterion1'];
-                          });
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          width: 140,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: selectedCriteria[_currentSetIndex * 3 + i] ==
-                                    currentSet[i]['criterion1']
-                                ? brightGreen
-                                : darkForestGreen,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Center(
-                            child: Text(
-                              currentSet[i]['criterion1']!,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  fontSize: 14, color: Colors.white),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            selectedCriteria[_currentSetIndex * 3 + i] =
-                                currentSet[i]['criterion2'];
-                          });
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          width: 140,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: selectedCriteria[_currentSetIndex * 3 + i] ==
-                                    currentSet[i]['criterion2']
-                                ? brightGreen
-                                : darkForestGreen,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Center(
-                            child: Text(
-                              currentSet[i]['criterion2']!,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  fontSize: 14, color: Colors.white),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  const Text('Select the importance level for this pair:'),
-                  Slider(
-                    value: _sliderValues[_currentSetIndex * 3 + i].toDouble(),
-                    min: 1,
-                    max: 9,
-                    divisions: 8,
-                    label: _sliderValues[_currentSetIndex * 3 + i].toString(),
-                    activeColor: darkForestGreen,
-                    inactiveColor: darkForestGreen.withOpacity(0.3),
-                    onChanged: (value) {
-                      setState(() {
-                        _sliderValues[_currentSetIndex * 3 + i] = value.toInt();
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              ),
-
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _saveAndNext,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: darkForestGreen,
-              ),
-              child: const Text('Next Set'),
-            ),
-          ],
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('AHP Questions - Set ${_currentSetIndex + 1}/${criteriaSets.length}'),
+          leading: _currentSetIndex > 0
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: _goBack,
+                )
+              : null,
         ),
-      ),
-    );
-  }
+        body: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Please rate the following criterion pairs:',
+                style: TextStyle(fontSize: 18),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: currentSet.length,
+                  itemBuilder: (context, i) {
+                    final pairKey = _currentSetIndex * 3 + i;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  selectedCriteria[pairKey] = {
+                                    'pair': currentSet[i]['pair'], // Set the selected criterion as the pair
+                                    'score': selectedCriteria[pairKey]?['score'] ?? 5,
+                                  };
+                                });
+                                
+                                debugPrint('PAIR : ${currentSet[i]}');
+                                debugPrint('SCORE : ${selectedCriteria[pairKey]}');
+                                debugPrint('PAIR KEY : ${pairKey}');
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 300),
+                                width: 140,
+                                height: 50,
+                                decoration: BoxDecoration(
+                                  color: selectedCriteria[pairKey]?['criterion1'] == currentSet[i]['criterion1']
+                                      ? brightGreen
+                                      : darkForestGreen,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    currentSet[i]['criterion1']!,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 14, color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  selectedCriteria[pairKey] = {
+                                    'pair': currentSet[i]['pair'], // Set the selected criterion as the pair
+                                    'score': selectedCriteria[pairKey]?['score'] ?? 5,
+                                  };
+                                });
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 300),
+                                width: 140,
+                                height: 50,
+                                decoration: BoxDecoration(
+                                  color: selectedCriteria[pairKey]?['criterion2'] == currentSet[i]['criterion2']
+                                      ? brightGreen
+                                      : darkForestGreen,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    currentSet[i]['criterion2']!,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 14, color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        const Text('Select the importance level for this pair:'),
+                        Slider(
+                          value: (selectedCriteria[pairKey]?['score'] ?? 5).toDouble(),
+                          min: 1,
+                          max: 9,
+                          divisions: 8,
+                          label: (selectedCriteria[pairKey]?['score'] ?? 5).toString(),
+                          activeColor: darkForestGreen,
+                          inactiveColor: darkForestGreen.withOpacity(0.3),
+                          onChanged: (value) {
+                            setState(() {
+                              selectedCriteria[pairKey] ??= {};
+                              selectedCriteria[pairKey]!['score'] = value.toInt();
+                            });
+
+                            setState(() {
+                              selectedCriteria[pairKey] = {
+                                'pair': currentSet[i]['pair'], // Set the selected criterion as the pair
+                                'score': selectedCriteria[pairKey]?['score'] ?? 5,
+                              };
+                            });
+
+                          },
+                        ),
+
+                        const SizedBox(height: 16),
+                      ],
+                    );
+                  },
+                ),
+              ),
+              ElevatedButton(
+                onPressed: _saveAndNext,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: darkForestGreen,
+                ),
+                child: const Text('Next Set'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
 }
+
+
+

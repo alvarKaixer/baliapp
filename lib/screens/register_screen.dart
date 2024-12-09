@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'dart:developer';
+import 'package:music_recommender/service/api_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -20,6 +21,8 @@ class RegisterScreenState extends State<RegisterScreen> {
 
   bool _isLoading = false;
   String _errorMessage = '';
+
+  final ApiService _apiService = ApiService();
 
   // Register function for API call and error handling
   void _register() async {
@@ -39,18 +42,14 @@ class RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    Dio dio = Dio();
-    dio.options.baseUrl =
-        'https://balitripapi.onrender.com'; // Update this with your actual API URL
-    dio.options.connectTimeout = Duration(milliseconds: 5000);
-    dio.options.receiveTimeout = Duration(milliseconds: 5000);
 
     try {
-      final response = await dio.post('/auth/register', data: {
+      final response = await _apiService.registerUser({
         'name': _nameController.text,
         'email': _emailController.text,
         'password': _passwordController.text,
       });
+
 
       if (response.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
