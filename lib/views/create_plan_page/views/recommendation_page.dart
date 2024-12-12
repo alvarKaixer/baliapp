@@ -19,10 +19,12 @@ import 'package:music_recommender/views/destinations/theedge.dart';
 import 'package:music_recommender/views/destinations/thespot.dart';
 import 'package:music_recommender/views/destinations/hardrock.dart';
 import './create_plan_page.dart';
+import 'package:music_recommender/views/bali_trip_screen/bali_trip_screen.dart';
 
 class RecommendationPage extends StatelessWidget {
   final List<Recommended> recommendations;
   final double remainingBudget;
+  final double locationFee;
   final Recommended? recommendation;
 
   const RecommendationPage({
@@ -30,6 +32,7 @@ class RecommendationPage extends StatelessWidget {
     required this.recommendations,
     required this.remainingBudget,
     required this.recommendation,
+    required this.locationFee
   }) : super(key: key);
 
   final locationImages = const {
@@ -69,8 +72,18 @@ class RecommendationPage extends StatelessWidget {
     }
   }
 
+
+
   @override
   Widget build(BuildContext context) {
+
+    void _gotoHomePage() {
+        Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const BaliTripScreen()),
+          );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Recommended Options'),
@@ -99,7 +112,7 @@ class RecommendationPage extends StatelessWidget {
                   DestinationCard(
                     imageUrl: locationImages[recommendation?.name] ?? 'assets/hardrock.jpg',
                     title: recommendation?.name ?? 'Unknown Destination',
-                    description: 'Discover the scenic ${recommendation?.name ?? 'location'}',
+                    description: 'Discover the scenic ${recommendation?.name ?? 'location'} @ ${locationFee} / pax',
                     onViewPressed: () {}
                   ),
 
@@ -341,11 +354,27 @@ class RecommendationPage extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildNavigationButton(context, 'Back', '/preferencePage',
-                        const Color.fromRGBO(72, 111, 111, 1)),
-                    _buildNavigationButton(context, 'Next', '/finishPage',
-                        const Color.fromRGBO(72, 111, 111, 1),
-                        textColor: Colors.black),
+                    // _buildNavigationButton(context, 'Back', '/preferencePage',
+                    //     const Color.fromRGBO(72, 111, 111, 1)),
+                    // _buildNavigationButton(context, 'Next', '/finishPage',
+                    //     const Color.fromRGBO(72, 111, 111, 1),
+                    //     textColor: Colors.black),
+
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color.fromRGBO(46, 79, 79, 1),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 32, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      onPressed: _gotoHomePage,
+                      child: const Text(
+                        'NEXT',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),                    
                   ],
                 ),
               ],
@@ -378,6 +407,8 @@ class RecommendationPage extends StatelessWidget {
       ),
     );
   }
+
+
 
   // Helper Method to Build Navigation Button
   Widget _buildNavigationButton(

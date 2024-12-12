@@ -125,6 +125,13 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
               controller: _planNameController,
               decoration: InputDecoration(
                 hintText: 'Enter the name of your plan',
+                labelText: 'Plan Name',
+                labelStyle: TextStyle(
+                  color: Colors.black,
+                ),
+                floatingLabelStyle: TextStyle(
+                  color: Colors.black,
+                ),   
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12.0),
                   borderSide:

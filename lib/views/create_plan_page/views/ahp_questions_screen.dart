@@ -87,6 +87,26 @@ class _AHPQuestionsScreenState extends State<AHPQuestionsScreen> {
     ],
   ];
 
+  final Map<String, dynamic> entranceFees = const {
+    'BEBEDECK': 50,
+    'EMMANUEL SPRING': 50,
+    'IP VILLAGE': 55,
+    'HARDROCK LUX SPRING RESORT': 100,
+    'MANG INASAL GAISANO': 0,
+    'NOODLE NOOK': 0,
+    'THE EDGE': 0,
+    'THE SPOT': 99,
+    'BALINGASAG PARK': 0,
+    'ISLA VERDE': 50,
+    'JOANNAS NOOK': 0,
+    'LA ROCKA': 0,
+    'ESCANILLA': {'day': 50, 'overnight': 100},
+    'ST. RITAS PARISH CHURCH': 0,
+    'LINABU MOUNTAIN VIEW': 150,
+  };
+
+
+
   final List<int> _sliderValues = List.filled(12, 5);
 
   bool _isLoading = false;
@@ -195,10 +215,10 @@ class _AHPQuestionsScreenState extends State<AHPQuestionsScreen> {
     if (balanceBudget < 0) {
       balanceBudget = 0;
     }
-
   
-      debugPrint('SAVED Budget : ${budget}');
-      debugPrint('SAVED No.Of Pax : ${noOfPax}');
+    debugPrint('SAVED Budget : ${budget}');
+    debugPrint('SAVED No.Of Pax : ${noOfPax}');
+    debugPrint('LOCATION Fee : ${locationEntranceFee}');
 
 
     // Return the balance budget
@@ -235,7 +255,7 @@ class _AHPQuestionsScreenState extends State<AHPQuestionsScreen> {
       debugPrint('SAVED Recommended : ${recommendation?.toString() ?? "No recommendation"}');
 
       // Calculate budget
-      const int locationEntranceFee = 100;
+      final int locationEntranceFee = entranceFees[recommendation?.name] ?? 0;
       int balanceBudget = await getBalanceBudget(locationEntranceFee);
       debugPrint('SAVED Balance Budget : $balanceBudget');
 
@@ -246,7 +266,8 @@ class _AHPQuestionsScreenState extends State<AHPQuestionsScreen> {
           builder: (context) => RecommendationPage(
             recommendations: const [], 
             remainingBudget: balanceBudget.toDouble(),
-            recommendation: recommendation, 
+            recommendation: recommendation,
+            locationFee:  locationEntranceFee.toDouble()
           ),
         ),
       );
