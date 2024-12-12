@@ -142,17 +142,17 @@ class _AHPQuestionsScreenState extends State<AHPQuestionsScreen> {
     }
   }
 
-    Future<void> storeRecommended(Recommended recommendation) async {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      
-      // Convert the Recommendation object to a map and then to a JSON string
-      String recommendationJson = jsonEncode(recommendation.toMap());
-      
-      // Save the JSON string in SharedPreferences
-      await prefs.setString('recommend_location', recommendationJson);
-      
-      debugPrint('Stored Recommendation: $recommendationJson');
-    }
+  Future<void> storeRecommended(Recommended recommendation) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    
+    // Convert the Recommendation object to a map and then to a JSON string
+    String recommendationJson = jsonEncode(recommendation.toMap());
+    
+    // Save the JSON string in SharedPreferences
+    await prefs.setString('recommend_location', recommendationJson);
+    
+    debugPrint('Stored Recommendation: $recommendationJson');
+  }
 
 
   Future<Recommended?> getRecommended() async {
@@ -174,6 +174,38 @@ class _AHPQuestionsScreenState extends State<AHPQuestionsScreen> {
       return null;
     }
   }
+
+  Future<int> getBalanceBudget(int locationEntranceFee) async {
+    // Load preferences asynchronously
+    final prefs = await SharedPreferences.getInstance();
+
+    // Retrieve saved preferences
+    final budgetString = prefs.getString('budget') ?? '0';
+    final noOfPaxString = prefs.getString('no_of_pax') ?? '0';
+
+    // Parse the budget and number of pax
+    final budget = int.tryParse(budgetString) ?? 0;
+    final noOfPax = int.tryParse(noOfPaxString) ?? 0;
+
+    // Calculate budget
+    final int totalFee = noOfPax * locationEntranceFee;
+    int balanceBudget = budget - totalFee;
+
+    // Ensure non-negative balance
+    if (balanceBudget < 0) {
+      balanceBudget = 0;
+    }
+
+  
+      debugPrint('SAVED Budget : ${budget}');
+      debugPrint('SAVED No.Of Pax : ${noOfPax}');
+
+
+    // Return the balance budget
+    return balanceBudget;
+  }
+
+
 
 
   void _saveAndNext() async {
@@ -198,19 +230,23 @@ class _AHPQuestionsScreenState extends State<AHPQuestionsScreen> {
       // Call AHP API
       _ahpRatePairs();
 
-    // Get the recommendation before navigating
-    Recommended? recommendation = await getRecommended();
+      // Get the recommendation before navigating
+      Recommended? recommendation = await getRecommended();
+      debugPrint('SAVED Recommended : ${recommendation?.toString() ?? "No recommendation"}');
 
-    debugPrint('SAVED Recommended : ${recommendation}');
+      // Calculate budget
+      const int locationEntranceFee = 100;
+      int balanceBudget = await getBalanceBudget(locationEntranceFee);
+      debugPrint('SAVED Balance Budget : $balanceBudget');
 
       // Navigate to Recomendation page
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (context) => RecommendationPage(
-            recommendations: const [], // Or pass a valid list of Recommended objects
-            remainingBudget: 1000.0, // Your remaining budget
-            recommendation: recommendation, // Pass the Recommendation object
+            recommendations: const [], 
+            remainingBudget: balanceBudget.toDouble(),
+            recommendation: recommendation, 
           ),
         ),
       );
