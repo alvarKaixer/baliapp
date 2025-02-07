@@ -1,4 +1,4 @@
-# music_recommender
+# bali_trip
 
 A new Flutter project.
 
